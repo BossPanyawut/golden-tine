@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   Card,
   CardDescription,
@@ -5,10 +6,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireSession } from "@/server/auth/dal";
+import { getDashboardTaskSummary } from "@/server/data/tasks";
+import { getDashboardHabitSummary } from "@/server/data/habits";
 
 export default async function DashboardPage() {
   const session = await requireSession();
   const firstName = session.user.name?.split(" ")[0] || "there";
+
+  const [taskSummary, habitSummary] = await Promise.all([
+    getDashboardTaskSummary(),
+    getDashboardHabitSummary(),
+  ]);
 
   return (
     <div className="grid gap-4 md:grid-cols-3">
@@ -22,18 +30,32 @@ export default async function DashboardPage() {
           </CardDescription>
         </CardHeader>
       </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Habits & Routines</CardTitle>
-          <CardDescription>Streaks, HP — Phase 1 / 2</CardDescription>
-        </CardHeader>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Today&apos;s Tasks</CardTitle>
-          <CardDescription>Work & personal projects — Phase 1</CardDescription>
-        </CardHeader>
-      </Card>
+
+      <Link href="/habits">
+        <Card className="h-full transition-colors hover:bg-muted/40">
+          <CardHeader>
+            <CardTitle className="text-base">Habits & Routines</CardTitle>
+            <CardDescription>
+              {habitSummary.total === 0
+                ? "No habits scheduled today"
+                : `${habitSummary.completed} / ${habitSummary.total} done today`}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </Link>
+
+      <Link href="/tasks?view=today">
+        <Card className="h-full transition-colors hover:bg-muted/40">
+          <CardHeader>
+            <CardTitle className="text-base">Today&apos;s Tasks</CardTitle>
+            <CardDescription>
+              {taskSummary.dueToday} due today
+              {taskSummary.overdue > 0 && ` · ${taskSummary.overdue} overdue`}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </Link>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Money & Mood</CardTitle>

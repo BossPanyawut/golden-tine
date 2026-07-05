@@ -1,11 +1,17 @@
-import { ModulePlaceholder } from "@/components/layout/module-placeholder";
+import { getHabits } from "@/server/data/habits";
+import { HabitList } from "./_components/habit-list";
+import { NewHabitDialog } from "./_components/new-habit-dialog";
 
-export default function HabitsPage() {
+export default async function HabitsPage() {
+  const habits = await getHabits();
+
   return (
-    <ModulePlaceholder
-      title="Habits & Routines"
-      description="Custom checklists, recurring resets, and streak tracking."
-      phase="Phase 1"
-    />
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold">Habits & Routines</h1>
+        <NewHabitDialog />
+      </div>
+      <HabitList habits={habits} />
+    </div>
   );
 }

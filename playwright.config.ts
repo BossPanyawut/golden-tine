@@ -5,6 +5,13 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
+  // Auth flows hash passwords with argon2, deliberately CPU-expensive by
+  // design — too many workers registering/logging in concurrently on a
+  // single dev-scale server contends for CPU and can blow past a tight
+  // assertion timeout. Keep worker count modest and give assertions more
+  // headroom rather than weakening the hash cost.
+  workers: process.env.CI ? 2 : 4,
+  expect: { timeout: 10_000 },
   reporter: process.env.CI ? "github" : "list",
   use: {
     baseURL: "http://localhost:3000",
