@@ -11,6 +11,8 @@ import {
   type CheckInInput,
   type CreateHabitInput,
 } from "@/lib/validation/habits";
+import { awardExp, reverseExp, syncProgress } from "@/server/services/progress";
+import { HABIT_EXP } from "@/server/services/exp-engine";
 
 export async function createHabit(input: CreateHabitInput) {
   const session = await requireSession();
@@ -40,14 +42,21 @@ export async function checkInHabit(input: CheckInInput) {
     .limit(1);
   if (!habit) return;
 
-  await db
+  const [log] = await db
     .insert(habitLogs)
     .values({
       habitId: parsed.habitId,
       userId: session.user.id,
       date: parsed.date,
     })
-    .onConflictDoNothing();
+    .onConflictDoNothing()
+    .returning({ id: habitLogs.id });
+
+  // Only award if a new log row was actually inserted (onConflictDoNothing
+  // returns nothing when the check-in already existed).
+  if (log) {
+    await awardExp(session.user.id, "habit", HABIT_EXP, log.id);
+  }
 
   revalidatePath("/habits");
   revalidatePath("/dashboard");
@@ -57,7 +66,7 @@ export async function undoCheckIn(input: CheckInInput) {
   const session = await requireSession();
   const parsed = checkInSchema.parse(input);
 
-  await db
+  const [deleted] = await db
     .delete(habitLogs)
     .where(
       and(
@@ -65,7 +74,16 @@ export async function undoCheckIn(input: CheckInInput) {
         eq(habitLogs.userId, session.user.id),
         eq(habitLogs.date, parsed.date)
       )
-    );
+    )
+    .returning({ id: habitLogs.id });
+
+  if (deleted) {
+    await reverseExp(session.user.id, "habit", deleted.id);
+  } else {
+    // Nothing to reverse, but HP still depends on habit completion — resync
+    // so the derived cache stays correct.
+    await syncProgress(session.user.id);
+  }
 
   revalidatePath("/habits");
   revalidatePath("/dashboard");

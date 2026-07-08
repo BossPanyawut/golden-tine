@@ -7,7 +7,9 @@ services:
       POSTGRES_PASSWORD: golden_tine
       POSTGRES_DB: golden_tine
     ports:
-      - "5432:5432"
+      # Host port is configurable to avoid clashing with another local
+      # Postgres already bound to 5432. Container port stays 5432.
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       - golden_tine_postgres:/var/lib/postgresql/data
     healthcheck:

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Archive,
+  Gamepad2,
   LayoutDashboard,
   LineChart,
   ListTodo,
@@ -32,6 +33,7 @@ const navItems = [
   { href: "/tasks", label: "Tasks & Projects", icon: ListTodo },
   { href: "/habits", label: "Habits", icon: Repeat },
   { href: "/finance", label: "Finance", icon: Wallet },
+  { href: "/gamification", label: "Rewards & Level", icon: Gamepad2 },
   { href: "/vault", label: "Vault", icon: Archive },
   { href: "/crm", label: "People", icon: Users },
   { href: "/review", label: "Weekly Review", icon: LineChart },

@@ -4,6 +4,7 @@ import {
   boolean,
   date,
   integer,
+  numeric,
   pgEnum,
   pgTable,
   primaryKey,
@@ -231,3 +232,105 @@ export const habitsRelations = relations(habits, ({ many }) => ({
 export const habitLogsRelations = relations(habitLogs, ({ one }) => ({
   habit: one(habits, { fields: [habitLogs.habitId], references: [habits.id] }),
 }));
+
+// --- Finance ---
+
+export const transactionTypeEnum = pgEnum("transaction_type", [
+  "income",
+  "expense",
+]);
+
+export const transactions = pgTable("transaction", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  type: transactionTypeEnum("type").notNull(),
+  // Money stored as numeric(12,2) — never float. Read/written as string via
+  // drizzle to preserve exact decimal precision.
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  category: text("category"),
+  note: text("note"),
+  date: date("date", { mode: "string" }).notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+});
+
+// Savings pot tied to a personal project — a target amount to fund it, plus
+// the running saved total. Progress = saved / target.
+export const goalFundings = pgTable("goal_funding", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  projectId: uuid("projectId").references(() => projects.id, {
+    onDelete: "set null",
+  }),
+  name: text("name").notNull(),
+  targetAmount: numeric("target_amount", { precision: 12, scale: 2 }).notNull(),
+  savedAmount: numeric("saved_amount", { precision: 12, scale: 2 })
+    .notNull()
+    .default("0"),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+});
+
+export const billingCycleEnum = pgEnum("billing_cycle", [
+  "monthly",
+  "yearly",
+]);
+
+export const subscriptions = pgTable("subscription", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  cycle: billingCycleEnum("cycle").notNull().default("monthly"),
+  // Next date the card gets charged.
+  nextBillingDate: date("next_billing_date", { mode: "string" }).notNull(),
+  reminderDaysBefore: integer("reminder_days_before").notNull().default(3),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+});
+
+// --- Gamification ---
+
+export const expSourceEnum = pgEnum("exp_source", ["task", "habit"]);
+
+// Append-only ledger — every EXP award is a row. totalExp in user_progress is
+// a derived cache kept in sync, but this is the source of truth.
+export const expLedger = pgTable("exp_ledger", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  source: expSourceEnum("source").notNull(),
+  amount: integer("amount").notNull(),
+  // Origin row id (task or habit-log) so we never double-award and can
+  // reverse an award if the action is undone.
+  sourceRefId: uuid("source_ref_id"),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+});
+
+export const rewards = pgTable("reward", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  cost: integer("cost").notNull(),
+  archived: boolean("archived").notNull().default(false),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+});
+
+export const rewardRedemptions = pgTable("reward_redemption", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  rewardId: uuid("rewardId")
+    .notNull()
+    .references(() => rewards.id, { onDelete: "cascade" }),
+  cost: integer("cost").notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+});

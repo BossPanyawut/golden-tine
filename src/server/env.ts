@@ -13,6 +13,8 @@ const envSchema = z.object({
     .transform((v) => v === "true"),
   ADMIN_EMAIL: z.email().optional(),
   ADMIN_PASSWORD: z.string().min(8).optional(),
+  // Shared secret Vercel Cron sends as `Authorization: Bearer <secret>`.
+  CRON_SECRET: z.string().min(16).optional(),
 });
 
 export const env = envSchema.parse(process.env);

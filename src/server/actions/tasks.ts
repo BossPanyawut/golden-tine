@@ -14,6 +14,8 @@ import {
   type CreateTaskInput,
   type UpdateTaskInput,
 } from "@/lib/validation/tasks";
+import { awardExp, reverseExp } from "@/server/services/progress";
+import { TASK_EXP } from "@/server/services/exp-engine";
 
 export async function createProject(input: CreateProjectInput) {
   const session = await requireSession();
@@ -108,20 +110,28 @@ export async function toggleTaskComplete(taskId: string) {
   const session = await requireSession();
 
   const [task] = await db
-    .select({ completed: tasks.completed })
+    .select({ completed: tasks.completed, priority: tasks.priority })
     .from(tasks)
     .where(and(eq(tasks.id, taskId), eq(tasks.userId, session.user.id)))
     .limit(1);
   if (!task) return;
 
+  const nowCompleted = !task.completed;
   await db
     .update(tasks)
     .set({
-      completed: !task.completed,
-      completedAt: !task.completed ? new Date() : null,
+      completed: nowCompleted,
+      completedAt: nowCompleted ? new Date() : null,
       updatedAt: new Date(),
     })
     .where(and(eq(tasks.id, taskId), eq(tasks.userId, session.user.id)));
+
+  // Award EXP on completion; reverse it if the task is un-checked.
+  if (nowCompleted) {
+    await awardExp(session.user.id, "task", TASK_EXP[task.priority], taskId);
+  } else {
+    await reverseExp(session.user.id, "task", taskId);
+  }
 
   revalidatePath("/tasks");
   revalidatePath("/dashboard");
